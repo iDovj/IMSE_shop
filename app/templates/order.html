@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Order {{ order.order_id }}</title>
+  </head>
+  <body>
+    <h1>Order {{ order.order_id }}</h1>
+    <p>Date Placed: {{ order.date_placed }}</p>
+    <p>Status: {{ order.order_status }}</p>
+    <h2>Products</h2>
+    <ul>
+      {% for order_product in order.order_products %}
+        <li>{{ order_product.product.product_name }} - Quantity: {{ order_product.quantity }}</li>
+      {% endfor %}
+    </ul>
+  </body>
+</html>
