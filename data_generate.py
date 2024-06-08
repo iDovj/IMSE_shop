@@ -1,11 +1,8 @@
+from app.models import User, Product, Category, Order, OrderProduct
 from mimesis import Generic
-from app import db, create_app
-from app.models import User, Product, Category
 import random
 
-app = create_app()
-
-with app.app_context():
+def generate_sample_data(db):
     generic = Generic('en')
 
     # Создаем категорию еды
@@ -16,7 +13,7 @@ with app.app_context():
     db.session.add(category)
     db.session.commit()
 
-    # Генерируем фейковые данные пользователей
+    # Генерация фейковых данных пользователей
     for _ in range(10):
         user = User(
             first_name=generic.person.first_name(),
@@ -27,11 +24,10 @@ with app.app_context():
         )
         db.session.add(user)
 
-    # Генерируем фейковые данные продуктов питания
-    for _ in range(50):  # Создаем 50 продуктов
+    # Генерация продуктов с описаниями
+    for _ in range(10):
         product_name = generic.food.dish()
-        product_desc = generic.text.text(quantity=1)  # Генерируем описание продукта
-
+        product_desc = generic.text.sentence()
         product = Product(
             product_name=product_name,
             product_desc=product_desc,

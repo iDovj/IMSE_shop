@@ -1,7 +1,10 @@
 import time
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
+from .forms import RegistrationForm, LoginForm
+
 
 db = SQLAlchemy()
 
@@ -21,26 +24,31 @@ def create_app():
     return app
 
 app = create_app()
+from .models import User, Product, Order, OrderProduct, CartItem, Category, Invoice
+
+@app.context_processor
+def inject_forms():
+    return dict(register_form=RegistrationForm(), login_form=LoginForm())
 
 @app.route('/')
 def home():
-    return render_template('home.html')
+    register_form = RegistrationForm()
+    login_form = LoginForm()
+    return render_template('home.html', register_form=register_form, login_form=login_form)
+
 
 @app.route('/users')
 def users():
-    from .models import User
     all_users = User.query.all()
     return render_template('users.html', users=all_users)
 
 @app.route('/products')
 def products():
-    from .models import Product
     all_products = Product.query.all()
     return render_template('products.html', products=all_products)
 
 @app.route('/cart')
 def cart():
-    from .models import CartItem, Product
     user_id = session.get('user_id', 1)  # Временно для тестов
     cart_items = CartItem.query.filter_by(user_id=user_id).all()
     cart = [{'product_name': item.product.product_name, 'quantity': item.quantity, 'price': item.product.price} for item in cart_items]
@@ -48,7 +56,6 @@ def cart():
 
 @app.route('/add_to_cart/<int:product_id>', methods=['POST'])
 def add_to_cart(product_id):
-    from .models import CartItem
     user_id = session.get('user_id', 1)  # Временно для тестов
     quantity = request.form.get('quantity', 1)
     cart_item = CartItem.query.filter_by(user_id=user_id, product_id=product_id).first()
@@ -62,7 +69,6 @@ def add_to_cart(product_id):
 
 @app.route('/place_order', methods=['POST'])
 def place_order():
-    from .models import Order, OrderProduct, Product, CartItem, Invoice
     user_id = session.get('user_id', 1)  # Временно для тестов
     cart_items = CartItem.query.filter_by(user_id=user_id).all()
 
@@ -98,48 +104,9 @@ def place_order():
 
 @app.route('/fill_db', methods=['POST'])
 def fill_db():
-    from .models import User, Product, Category
-    from mimesis import Generic
-    import random
-
-    generic = Generic('en')
-
-    # Создаем категорию еды
-    category = Category(
-        category_name='Food',
-        category_desc='Groceries and food items.'
-    )
-    db.session.add(category)
-    db.session.commit()
-
-    # Генерация фейковых данных пользователей
-    for _ in range(10):
-        user = User(
-            first_name=generic.person.first_name(),
-            last_name=generic.person.last_name(),
-            email=generic.person.email(),
-            password=generic.person.password(),
-            date_registered=generic.datetime.datetime()
-        )
-        db.session.add(user)
-
-    # Генерация продуктов с описаниями
-    for _ in range(10):
-        product_name = generic.food.dish()
-        product_desc = generic.text.sentence()
-        product = Product(
-            product_name=product_name,
-            product_desc=product_desc,
-            price=round(random.uniform(5.0, 100.0), 2),
-            quantity=random.randint(1, 100),
-            category_id=category.category_id
-        )
-        db.session.add(product)
-
-    db.session.commit()
-
+    from .data_generate import generate_sample_data
+    generate_sample_data(db)
     return redirect(url_for('home'))
-
 
 @app.route('/report_d')
 def report_d():
@@ -148,3 +115,47 @@ def report_d():
     report_data = get_users_spending_over_threshold(threshold)
     print("Report Data:", report_data)
     return render_template('report_d.html', report=report_data)
+
+@app.route('/register', methods=['POST'])
+def register():
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        first_name = form.first_name.data
+        last_name = form.last_name.data
+        email = form.email.data
+        password = form.password.data
+
+        user = User.query.filter_by(email=email).first()
+        if user:
+            flash('Email address already registered')
+            return redirect(url_for('home'))
+
+        new_user = User(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            password=generate_password_hash(password)
+        )
+        db.session.add(new_user)
+        db.session.commit()
+
+        flash('You have successfully registered')
+        return redirect(url_for('home'))
+    return render_template('home.html', register_form=form, login_form=LoginForm())
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    from app.models import User
+    form = LoginForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password.data
+        user = User.query.filter_by(email=email).first()
+        if user and check_password_hash(user.password, password):
+            session['user_id'] = user.user_id
+            flash('Login successful')
+            return redirect(url_for('home'))
+        else:
+            flash('Login unsuccessful. Check email and password')
+    return render_template('home.html', register_form=RegistrationForm(), login_form=form)
