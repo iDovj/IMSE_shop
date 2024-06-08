@@ -3,13 +3,16 @@
 {% block title %}Order {{ order.order_id }}{% endblock %}
 
 {% block content %}
-    <h1>Order {{ order.order_id }}</h1>
-    <p>Date Placed: {{ order.date_placed }}</p>
-    <p>Status: {{ order.order_status }}</p>
-    <h2>Products</h2>
-    <ul>
-        {% for order_product in order.order_products %}
-            <li>{{ order_product.product.product_name }} - Quantity: {{ order_product.quantity }}</li>
-        {% endfor %}
-    </ul>
+    <div class="container">
+        <h1>Order {{ order.order_id }}</h1>
+        <p>Date Placed: {{ order.date_placed }}</p>
+        <p>Status: {{ order.order_status }}</p>
+        <h2>Products</h2>
+        <ul>
+            {% for order_product in order.order_products %}
+                <li>{{ order_product.product.product_name }} - Quantity: {{ order_product.quantity }}</li>
+            {% endfor %}
+        </ul>
+        <h3>Total Cost: ${{ order.invoice.total_cost }}</h3>
+    </div>
 {% endblock %}

@@ -73,7 +73,8 @@ def place_order():
     cart_items = CartItem.query.filter_by(user_id=user_id).all()
 
     if not cart_items:
-        return "Your cart is empty!", 400
+        flash("Your cart is empty!", "danger")
+        return redirect(url_for('cart'))
 
     new_order = Order(user_id=user_id, order_status='Pending')
     db.session.add(new_order)
@@ -100,7 +101,13 @@ def place_order():
     CartItem.query.filter_by(user_id=user_id).delete()
     db.session.commit()
 
-    return "Order placed successfully!"
+    flash('Order placed successfully!', 'success')
+    return redirect(url_for('order_details', order_id=new_order.order_id))
+
+@app.route('/order/<int:order_id>')
+def order_details(order_id):
+    order = Order.query.get_or_404(order_id)
+    return render_template('order.html', order=order)
 
 @app.route('/fill_db', methods=['POST'])
 def fill_db():
@@ -113,7 +120,7 @@ def report_d():
     from .reports import get_users_spending_over_threshold
     threshold = 1000  # Здесь можно установить пороговое значение
     report_data = get_users_spending_over_threshold(threshold)
-    print("Report Data:", report_data)
+    # print("Report Data:", report_data)
     return render_template('report_d.html', report=report_data)
 
 @app.route('/register', methods=['POST'])
