@@ -1,0 +1,29 @@
+{% extends "_user_layout.html" %}
+
+{% block title %}Orders{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h1>Orders</h1>
+        {% if orders %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date Placed</th>
+                        <th>Order Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                        <tr>
+                            <td>{{ order.date_placed.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>{{ order.order_status }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No orders found.</p>
+        {% endif %}
+    </div>
+{% endblock %}

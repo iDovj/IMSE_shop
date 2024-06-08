@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "_user_layout.html" %}
 
 {% block title %}Home{% endblock %}
 
@@ -7,12 +7,6 @@
         <h1>Welcome to the Online Store</h1>
         <div class="btn-group" role="group" aria-label="Basic example">
             <a class="btn btn-primary" href="{{ url_for('users') }}">View Users</a>
-            <a class="btn btn-primary" href="{{ url_for('products') }}">View Products</a>
-            <a class="btn btn-primary" href="{{ url_for('cart') }}">View Cart</a>
-            <a class="btn btn-success" href="{{ url_for('report_d') }}">View Report</a>
         </div>
-        <form action="{{ url_for('fill_db') }}" method="post">
-            <button type="submit" class="btn btn-danger">Fill Database with Sample Data</button>
-        </form>
     </div>
 {% endblock %}

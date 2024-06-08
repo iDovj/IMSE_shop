@@ -2,12 +2,12 @@
 FROM python:3.10-slim-buster
 
 WORKDIR /app
+ADD . /app
 
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 COPY . .
 
-ENV PYTHONPATH=/app
-CMD ["python", "app/main.py"]
+CMD ["python", "run.py"]
     

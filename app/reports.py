@@ -1,5 +1,5 @@
 from .models import User, Order, OrderProduct, Product, Category, Invoice
-from . import db
+from app.main import db
 
 def get_users_spending_over_threshold(threshold):
     results = db.session.query(

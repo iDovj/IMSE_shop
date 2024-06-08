@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app.models import User, Product, Category, Order, OrderProduct
 from mimesis import Generic
 import random
@@ -35,6 +37,16 @@ def generate_sample_data(db):
             date_registered=generic.datetime.datetime()
         )
         db.session.add(user)
+
+    test_user = User(
+        first_name='Markus',
+        last_name='Schlechttester',
+        email='test@mail.com',
+        password='test',
+        date_registered=datetime(1,1,1)
+    )
+
+    db.session.add(test_user)
 
     # Генерация продуктов с описаниями для каждой категории
     for category in category_objects:

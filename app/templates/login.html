@@ -1,51 +1,43 @@
-<!-- Login Modal -->
-<div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="loginModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="loginModalLabel">Login</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form method="POST" action="{{ url_for('login') }}">
-                    {{ login_form.hidden_tag() }}
-                    <div class="form-group">
-                        {{ login_form.email.label(class="form-control-label") }}
-                        {% if login_form.email.errors %}
-                            {{ login_form.email(class="form-control form-control-lg is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in login_form.email.errors %}
-                                    <span>{{ error }}</span>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ login_form.email(class="form-control form-control-lg") }}
-                        {% endif %}
-                    </div>
-                    <div class="form-group">
-                        {{ login_form.password.label(class="form-control-label") }}
-                        {% if login_form.password.errors %}
-                            {{ login_form.password(class="form-control form-control-lg is-invalid") }}
-                            <div class="invalid-feedback">
-                                {% for error in login_form.password.errors %}
-                                    <span>{{ error }}</span>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            {{ login_form.password(class="form-control form-control-lg") }}
-                        {% endif %}
-                    </div>
-                    <div class="form-group">
-                        {{ login_form.remember.label(class="form-control-label") }}
-                        {{ login_form.remember(class="form-control form-control-lg") }}
-                    </div>
-                    <div class="form-group">
-                        {{ login_form.submit(class="btn btn-outline-info") }}
-                    </div>
-                </form>
-            </div>
+{% extends "_user_layout.html" %}
+
+{% block title %}Login - My Online Store{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h2 class="mb-4">Login</h2>
+            <form method="POST" action="{{ url_for('login') }}">
+                {{ login_form.hidden_tag() }}
+                <div class="form-group mb-3">
+                    {{ login_form.email.label(class="form-control-label") }}
+                    {% if login_form.email.errors %}
+                        {{ login_form.email(class="form-control form-control-lg is-invalid") }}
+                        <div class="invalid-feedback">
+                            {% for error in login_form.email.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {{ login_form.email(class="form-control form-control-lg") }}
+                    {% endif %}
+                </div>
+                <div class="form-group mb-3">
+                    {{ login_form.password.label(class="form-control-label") }}
+                    {% if login_form.password.errors %}
+                        {{ login_form.password(class="form-control form-control-lg is-invalid") }}
+                        <div class="invalid-feedback">
+                            {% for error in login_form.password.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {{ login_form.password(class="form-control form-control-lg") }}
+                    {% endif %}
+                </div>
+                <div class="form-group mb-3">
+                    {{ login_form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
         </div>
     </div>
-</div>
+{% endblock %}
