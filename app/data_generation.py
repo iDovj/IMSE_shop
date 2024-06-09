@@ -40,7 +40,7 @@ def generate_sample_data(db):
         return round(np.random.lognormal(mean=5, sigma=1.5), 2)
 
     # Generate products
-    num_products = random.randint(100, 300)
+    num_products = random.randint(80, 120)
     products = []
 
     for i in range(num_products):
@@ -143,26 +143,52 @@ def generate_sample_data(db):
         end_date = datetime.now() - timedelta(days=end_years_ago * 365)
         return start_date + (end_date - start_date) * random.random()
 
+    def choose_product(never_purchased_products, purchased_products):
+        if not purchased_products:
+            # If there are no purchased products, choose from never purchased products
+            product = random.choice(list(never_purchased_products))
+            never_purchased_products.remove(product)
+            purchased_products.add(product)
+        else:
+            if random.random() < 0.5 and purchased_products:
+                # 50% chance to choose a purchased product, if available
+                product = random.choice(list(purchased_products))
+            elif never_purchased_products:
+                # Otherwise, choose from never purchased products if available
+                product = random.choice(list(never_purchased_products))
+                never_purchased_products.remove(product)
+                purchased_products.add(product)
+            else:
+                # If no never purchased products are available, fallback to purchased products
+                product = random.choice(list(purchased_products))
+
+        return product, never_purchased_products, purchased_products
+
+
+    # Parameters for the normal distribution
+    mean_orders = 50  # Mean number of orders per user
+    std_dev_orders = 15  # Standard deviation for the number of orders
+
     # Create orders and invoices
     for user in users:
         # Determine the number of orders for the user
-        num_orders = random.randint(1, 100)
+        num_orders = int(random.normalvariate(mean_orders, std_dev_orders))
+        num_orders = max(1, min(num_orders, 100))
 
-        # Track purchased products for re-buy logic
-        purchased_products = []
+        never_purchased_products = set(products)
+        purchased_products = set()
 
         for _ in range(num_orders):
             # Select products for the order
             order_products = set()
+            # 1 to 5 products per order
             for _ in range(random.randint(1, 5)):
-                if random.random() < 0.30 and purchased_products:
-                    product = random.choice(purchased_products)
-                else:
-                    product = random.choice(products)
-                    purchased_products.append(product)
+                product, never_purchased_products, purchased_products = choose_product(never_purchased_products, purchased_products)
+
                 # Ensure no duplicate product in the same order
                 while product.product_id in [op.product_id for op in order_products]:
-                    product = random.choice(products)
+                    product, never_purchased_products, purchased_products = choose_product(never_purchased_products, purchased_products)
+
                 order_products.add(product)
 
             # Determine order status

@@ -1,13 +1,31 @@
 {% extends "_admin_layout.html" %}
 
-{% block title %}Report 2 - My Online Store{% endblock %}
+{% block title %}Report{% endblock %}
 
 {% block content %}
-    <div class="row">
-        <div class="col-12 text-center">
-            <h1>Report 2</h1>
-            <p>This is the second report page.</p>
-            <!-- Add your Report 2 content here -->
-        </div>
+    <div class="container mt-5">
+        <h1>Repeat Buyer Report</h1>
+        {% if report_entries %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Product ID</th>
+                        <th>Product Name</th>
+                        <th>Repeat Buyers</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in report_entries %}
+                        <tr>
+                            <td>{{ entry.product_id }}</td>
+                            <td>{{ entry.product_name }}</td>
+                            <td>{{ entry.multiple_buyer_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No products found.</p>
+        {% endif %}
     </div>
 {% endblock %}

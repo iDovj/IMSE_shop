@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_wtf import CSRFProtect
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import joinedload
 
@@ -28,7 +27,8 @@ def create_app():
     return app
 
 app = create_app()
-from .models import User, Product, Order, OrderProduct, CartProduct, Category, Invoice
+from .models import User, Product, Order, OrderProduct, CartProduct, Invoice
+
 
 # Context processor to inject `logged_in` and `db_status` variables into all templates
 @app.context_processor
@@ -234,4 +234,6 @@ def report2():
     if session.get('db_status') == 'not_initialized':
         flash('Database is not initialized', 'danger')
         return redirect(url_for('dashboard'))
-    return render_template('report2.html')
+    from app.reports import get_repeat_buyer_products
+    report_entries = get_repeat_buyer_products()
+    return render_template('report2.html', report_entries=report_entries)
