@@ -48,18 +48,15 @@ def generate_sample_data(db):
 
     db.session.add(test_user)
 
-    # Генерация продуктов с описаниями для каждой категории
-    for category in category_objects:
-        for _ in range(10):
-            product_name = generic.food.dish()
-            product_desc = generic.text.sentence()
-            product = Product(
-                product_name=product_name,
-                product_desc=product_desc,
-                price=round(random.uniform(5.0, 100.0), 2),
-                quantity=random.randint(1, 100),
-                category_id=category.category_id
-            )
-            db.session.add(product)
+    for _ in range(10):
+        product_name = generic.food.dish()
+        product_desc = generic.text.sentence()
+        product = Product(
+            product_name=product_name,
+            product_desc=product_desc,
+            price=round(random.uniform(5.0, 100.0), 2),
+            quantity=random.randint(1, 100),
+        )
+        db.session.add(product)
 
     db.session.commit()

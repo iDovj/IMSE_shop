@@ -25,7 +25,7 @@ def create_app():
     return app
 
 app = create_app()
-from .models import User, Product, Order, OrderProduct, CartItem, Category, Invoice
+from .models import User, Product, Order, OrderProduct, CartProduct, Category, Invoice
 
 # Context processor to inject `logged_in` and `db_status` variables into all templates
 @app.context_processor
@@ -61,7 +61,7 @@ def users():
 
 @app.route('/products')
 def products():
-    all_products = Product.query.all()
+    all_products = Product.query.options(db.joinedload(Product.categories)).all()
     return render_template('products.html', products=all_products)
 
 
@@ -93,19 +93,19 @@ def cart():
         flash('You need to be logged in to view your cart.', 'warning')
         return redirect(url_for('login'))
 
-    cart_items = CartItem.query.filter_by(user_id=user_id).all()
-    cart = [{'product_name': item.product.product_name, 'quantity': item.quantity, 'price': item.product.price} for item in cart_items]
+    cart_products = CartProduct.query.filter_by(user_id=user_id).all()
+    cart = [{'product_name': item.product.product_name, 'quantity': item.quantity, 'price': item.product.price} for item in cart_products]
     return render_template('cart.html', cart=cart)
 
 @app.route('/add_to_cart/<int:product_id>', methods=['POST'])
 def add_to_cart(product_id):
     user_id = session.get('user_id', 1)  # Temporarily for testing
     quantity = request.form.get('quantity', 1)
-    cart_item = CartItem.query.filter_by(user_id=user_id, product_id=product_id).first()
+    cart_item = CartProduct.query.filter_by(user_id=user_id, product_id=product_id).first()
     if cart_item:
         cart_item.quantity += int(quantity)
     else:
-        cart_item = CartItem(user_id=user_id, product_id=product_id, quantity=quantity)
+        cart_item = CartProduct(user_id=user_id, product_id=product_id, quantity=quantity)
         db.session.add(cart_item)
     db.session.commit()
     return redirect(url_for('products'))
@@ -113,7 +113,7 @@ def add_to_cart(product_id):
 @app.route('/place_order', methods=['POST'])
 def place_order():
     user_id = session.get('user_id', 1)  # Temporarily for testing
-    cart_items = CartItem.query.filter_by(user_id=user_id).all()
+    cart_items = CartProduct.query.filter_by(user_id=user_id).all()
 
     if not cart_items:
         flash("Your cart is empty!", "danger")
@@ -141,7 +141,7 @@ def place_order():
     db.session.add(new_invoice)
     db.session.commit()
 
-    CartItem.query.filter_by(user_id=user_id).delete()
+    CartProduct.query.filter_by(user_id=user_id).delete()
     db.session.commit()
 
     flash('Order placed successfully!', 'success')

@@ -11,7 +11,7 @@
                     <tr>
                         <th>Product Name</th>
                         <th>Description</th>
-                        <th>Category</th>
+                        <th>Categories</th>
                         <th>Price</th>
                         <th>Quantity</th>
                         <th>Add to Cart</th>
@@ -22,7 +22,13 @@
                         <tr>
                             <td>{{ product.product_name }}</td>
                             <td>{{ product.product_desc }}</td>
-                            <td>{{ product.category.category_name }}</td>
+                            <td>
+                                <ul>
+                                    {% for category in product.categories %}
+                                        <li>{{ category.category_name }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
                             <td>${{ product.price }}</td>
                             <td>{{ product.quantity }}</td>
                             <td>
