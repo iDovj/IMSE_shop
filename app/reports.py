@@ -1,4 +1,4 @@
-from .models import User, Order, OrderProduct, Product, Category, Invoice
+from .models import User, Order, OrderProduct, Product, Category, Invoice, ProductCategory
 from app.main import db
 
 def get_users_spending_over_threshold(threshold):
@@ -9,7 +9,8 @@ def get_users_spending_over_threshold(threshold):
     ).join(Order, User.user_id == Order.user_id
     ).join(OrderProduct, Order.order_id == OrderProduct.order_id
     ).join(Product, OrderProduct.product_id == Product.product_id
-    ).join(Category, Product.category_id == Category.category_id
+    ).join(ProductCategory, Product.product_id == ProductCategory.product_id
+    ).join(Category, ProductCategory.category_id == Category.category_id
     ).join(Invoice, Order.order_id == Invoice.order_id
     ).filter(
         Invoice.date_issued >= db.func.now() - db.text("interval '6 months'")
