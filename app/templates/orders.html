@@ -12,6 +12,8 @@
                         <th>Order ID</th>
                         <th>Date Placed</th>
                         <th>Order Status</th>
+                        <th>Details</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -20,6 +22,64 @@
                             <td>{{ order.order_id }}</td>
                             <td>{{ order.date_placed.strftime('%Y-%m-%d') }}</td>
                             <td>{{ order.order_status }}</td>
+                            <td>
+                                <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#orderDetails{{ order.order_id }}" aria-expanded="false" aria-controls="orderDetails{{ order.order_id }}">
+                                    View Details
+                                </button>
+                            </td>
+                            <td>
+                                {% if order.order_status == 'Pending' or order.order_status == 'Processing' %}
+                                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmCancelModal{{ order.order_id }}">
+                                        Cancel Order
+                                    </button>
+                                    <!-- Confirmation Modal -->
+                                    <div class="modal fade" id="confirmCancelModal{{ order.order_id }}" tabindex="-1" aria-labelledby="confirmCancelModalLabel{{ order.order_id }}" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="confirmCancelModalLabel{{ order.order_id }}">Confirm Cancellation</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    Are you sure you want to cancel this order?
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <form method="POST" action="{{ url_for('cancel_order', order_id=order.order_id) }}">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+                                                        <button type="submit" class="btn btn-danger">Yes, Cancel Order</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="5">
+                                <div class="collapse" id="orderDetails{{ order.order_id }}">
+                                    <div class="card card-body">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Product Name</th>
+                                                    <th>Quantity</th>
+                                                    <th>Price per Unit</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for item in order.order_products %}
+                                                    <tr>
+                                                        <td>{{ item.product.product_name }}</td>
+                                                        <td>{{ item.quantity }}</td>
+                                                        <td>${{ item.product.price }}</td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>

@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import CSRFProtect
 from sqlalchemy import inspect, text
+from sqlalchemy.orm import joinedload
+
 from app.forms import LoginForm
 import sys
 import logging
@@ -72,8 +75,26 @@ def orders():
         flash('You need to be logged in to view your orders.', 'warning')
         return redirect(url_for('login'))
 
-    user_orders = Order.query.filter_by(user_id=user_id).all()  # Fetch orders for the logged-in user
-    return render_template('orders.html', orders=user_orders)
+    all_orders = (Order.query.options(joinedload(Order.order_products).joinedload(OrderProduct.product))
+                  .order_by(Order.date_placed.desc()).all())
+    return render_template('orders.html', orders=all_orders)
+
+@app.route('/cancel_order/<int:order_id>', methods=['POST'])
+def cancel_order(order_id):
+    order = Order.query.get(order_id)
+    if order and order.order_status in ['Pending', 'Processing']:
+        # Update the product quantities
+        for order_product in order.order_products:
+            product = order_product.product
+            product.quantity += order_product.quantity
+
+        # Change the order status to 'Canceled'
+        order.order_status = 'Canceled'
+        db.session.commit()
+        flash('Order has been canceled and products have been restocked.', 'success')
+    else:
+        flash('Order cannot be canceled.', 'danger')
+    return redirect(url_for('orders'))
 
 @app.route('/logout')
 def log_out():
