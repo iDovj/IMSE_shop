@@ -1,5 +1,7 @@
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import PrimaryKeyConstraint, Numeric
-from app.main import db
+
+db = SQLAlchemy()
 
 # OK
 class User(db.Model):

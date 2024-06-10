@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import numpy as np
 from sqlalchemy import func
 
-from app.models import User, Product, Category, Order, OrderProduct, ProductCategory, Accessory, CartProduct, Invoice
+from app.models import User, Product, Category, Order, OrderProduct, ProductCategory, Accessory, Invoice
 from mimesis import Generic
 import random
 
