@@ -13,6 +13,8 @@ import logging
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+# Suppress pymongo debug messages
+logging.getLogger('pymongo').setLevel(logging.INFO)
 
 # Create app
 app = Flask(__name__)
@@ -237,10 +239,11 @@ def report2():
     report_entries = get_repeat_buyer_products()
     return render_template('report2.html', report_entries=report_entries)
 
-@app.route('/copy_to_no_sql')
-def copy_to_no_sql():
-    logger.debug("copy_to_no_sql route accessed")
+@app.route('/migrate_to_no_sql')
+def migrate_to_no_sql():
+    logger.debug("migrate_to_no_sql route accessed")
     migrate(db, mongo_db)
-    app.config['DB_STATUS'] = 'COPIED_TO_NO_SQL'
+    # TODO: drop SQL tables
+    app.config['DB_STATUS'] = 'NO_SQL'
     # flash('Database copied to NoSQL successfully!', 'success')
     return redirect(url_for('dashboard'))

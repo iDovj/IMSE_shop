@@ -17,7 +17,7 @@
                 <div class="alert alert-success" role="alert">
                     The database is initialized successfully!
                 </div>
-                <a href="{{ url_for('copy_to_no_sql') }}" class="btn btn-primary mt-3">Copy to NoSQL</a>
+                <a href="{{ url_for('migrate_to_no_sql') }}" class="btn btn-primary mt-3">Migrate to NoSQL</a>
                 <h2>Database Overview</h2>
                 <p>Number of Tables: {{ table_count }}</p>
                 <table class="table table-bordered">
@@ -36,10 +36,11 @@
                         {% endfor %}
                     </tbody>
                 </table>
-            {% elif db_status == 'COPIED_TO_NO_SQL' %}
+            {% elif db_status == 'NO_SQL' %}
                 <div class="alert alert-success" role="alert">
-                    Database copied to NoSQL successfully!
+                    Database migrated to NoSQL successfully!
                 </div>
+{#                <-- TODO: number of collections instead #}
                 <h2>Database Overview</h2>
                 <p>Number of Tables: {{ table_count }}</p>
                 <table class="table table-bordered">
