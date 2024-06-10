@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+import pymongo
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, text
@@ -7,12 +10,13 @@ from app.forms import LoginForm
 import sys
 import logging
 
+from bson.decimal128 import Decimal128
+
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 db = SQLAlchemy()
-
 
 def create_app():
     app = Flask(__name__)
@@ -27,8 +31,104 @@ def create_app():
     return app
 
 app = create_app()
-from .models import User, Product, Order, OrderProduct, CartProduct, Invoice
+from .models import User, Product, Order, OrderProduct, CartProduct, Invoice, Accessory, Category
 
+# create empty mongo database
+mongo_client = pymongo.MongoClient('mongodb://user:password@mongodb:27017/')
+mongo_db = mongo_client['mongo_db']
+
+def reset_mongo_db(mongo_db):
+    """ function to reset mongodb. just a sanity check to ensure that we don't keep any old data from previous runs. """
+    for col_name in mongo_db.list_collection_names():
+        mongo_db[col_name].drop()
+
+reset_mongo_db(mongo_db=mongo_db)
+
+def migrate(db, mongo_db):
+    session = db.session
+
+    # Migrate User data
+    users_collection = mongo_db["users"]
+    users = session.query(User).all()
+    for user in users:
+        user_dict = {
+            "user_id": user.user_id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "password": user.password,
+            "date_registered": user.date_registered,
+            "orders": [],
+            "cart_products": []
+        }
+
+        # Add orders
+        for order in user.orders:
+            order_dict = {
+                "order_id": order.order_id,
+                "date_placed": order.date_placed,
+                "order_status": order.order_status,
+                "order_products": [],
+                "invoice": {}
+            }
+
+            # Add order products
+            for order_product in order.order_products:
+                order_dict["order_products"].append({
+                    "product_id": order_product.product_id,  # Reference to product
+                    "quantity": order_product.quantity
+                })
+
+            # Add invoice
+            if order.invoice:
+                invoice = order.invoice
+                order_dict["invoice"] = {
+                    "invoice_id": invoice.invoice_id,
+                    "total_cost": Decimal128(str(invoice.total_cost)),
+                    "date_issued": invoice.date_issued,
+                    "payment_status": invoice.payment_status
+                }
+
+            user_dict["orders"].append(order_dict)
+
+        # Add cart products
+        for cart_product in user.cart_products:
+            user_dict["cart_products"].append({
+                "product_id": cart_product.product_id,  # Reference to product
+                "quantity": cart_product.quantity
+            })
+
+        users_collection.insert_one(user_dict)
+
+    # Migrate Product data
+    products_collection = mongo_db["products"]
+    products = session.query(Product).all()
+    for product in products:
+        product_dict = {
+            "product_id": product.product_id,
+            "product_name": product.product_name,
+            "price": Decimal128(str(product.price)),
+            "quantity": product.quantity,
+            "product_desc": product.product_desc,
+            "category_ids": [category.category_id for category in product.categories],  # References to categories
+            "accessory_ids": [accessory.accessory_product_id for accessory in session.query(Accessory).filter_by(base_product_id=product.product_id).all()]  # References to accessories
+        }
+
+        products_collection.insert_one(product_dict)
+
+    # Migrate Category data
+    categories_collection = mongo_db["categories"]
+    categories = session.query(Category).all()
+    for category in categories:
+        category_dict = {
+            "category_id": category.category_id,
+            "category_name": category.category_name,
+            "category_desc": category.category_desc
+        }
+
+        categories_collection.insert_one(category_dict)
+
+    session.close()
 
 # Context processor to inject `logged_in` and `db_status` variables into all templates
 @app.context_processor
@@ -216,7 +316,7 @@ def initialize_db():
         from .data_generation import generate_sample_data
         generate_sample_data(db)
     app.config['DB_STATUS'] = 'SQL'
-    flash('Database initialized successfully!', 'success')
+    # flash('Database initialized successfully!', 'success')
     return redirect(url_for('dashboard'))
 
 @app.route('/report1')
@@ -237,3 +337,11 @@ def report2():
     from app.reports import get_repeat_buyer_products
     report_entries = get_repeat_buyer_products()
     return render_template('report2.html', report_entries=report_entries)
+
+@app.route('/copy_to_no_sql')
+def copy_to_no_sql():
+    logger.debug("copy_to_no_sql route accessed")
+    migrate(db, mongo_db)
+    app.config['DB_STATUS'] = 'COPIED_TO_NO_SQL'
+    # flash('Database copied to NoSQL successfully!', 'success')
+    return redirect(url_for('dashboard'))

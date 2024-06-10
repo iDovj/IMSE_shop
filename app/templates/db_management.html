@@ -13,9 +13,32 @@
                 <form method="POST" action="{{ url_for('initialize_db') }}">
                     <button type="submit" class="btn btn-primary">Initialize Database</button>
                 </form>
-            {% else %}
+            {% elif db_status == 'SQL' %}
                 <div class="alert alert-success" role="alert">
                     The database is initialized successfully!
+                </div>
+                <a href="{{ url_for('copy_to_no_sql') }}" class="btn btn-primary mt-3">Copy to NoSQL</a>
+                <h2>Database Overview</h2>
+                <p>Number of Tables: {{ table_count }}</p>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Table Name</th>
+                            <th>Number of Entries</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for table in tables %}
+                            <tr>
+                                <td>{{ table.name }}</td>
+                                <td>{{ table.entries }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% elif db_status == 'COPIED_TO_NO_SQL' %}
+                <div class="alert alert-success" role="alert">
+                    Database copied to NoSQL successfully!
                 </div>
                 <h2>Database Overview</h2>
                 <p>Number of Tables: {{ table_count }}</p>

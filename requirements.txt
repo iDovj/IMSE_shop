@@ -6,3 +6,4 @@ mimesis
 flask-wtf
 email_validator
 numpy
+pymongo
