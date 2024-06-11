@@ -2,7 +2,7 @@ import pymongo
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import joinedload
-from app.database_functions import find_all_products
+from app.database_functions import find_all_products, find_all_orders, get_cart, add_item_to_cart
 from app.models import User, Product, Order, OrderProduct, CartProduct, Invoice, Accessory, Category, db
 from app.migrate_functions import migrate, reset_mongo_db
 from app.forms import LoginForm
@@ -76,8 +76,7 @@ def orders():
         flash('You need to be logged in to view your orders.', 'warning')
         return redirect(url_for('login'))
 
-    all_orders = (Order.query.options(joinedload(Order.order_products).joinedload(OrderProduct.product))
-                  .order_by(Order.date_placed.desc()).all())
+    all_orders = find_all_orders(db, mongo_db, app.config['DB_STATUS'], user_id)
     return render_template('orders.html', orders=all_orders)
 
 @app.route('/cancel_order/<int:order_id>', methods=['POST'])
@@ -115,21 +114,14 @@ def cart():
         flash('You need to be logged in to view your cart.', 'warning')
         return redirect(url_for('login'))
 
-    cart_products = CartProduct.query.filter_by(user_id=user_id).all()
-    cart = [{'product_name': item.product.product_name, 'quantity': item.quantity, 'price': item.product.price} for item in cart_products]
+    cart = get_cart(db, mongo_db, app.config['DB_STATUS'], user_id)
     return render_template('cart.html', cart=cart)
 
 @app.route('/add_to_cart/<int:product_id>', methods=['POST'])
 def add_to_cart(product_id):
     user_id = session.get('user_id', 1)  # Temporarily for testing
     quantity = request.form.get('quantity', 1)
-    cart_item = CartProduct.query.filter_by(user_id=user_id, product_id=product_id).first()
-    if cart_item:
-        cart_item.quantity += int(quantity)
-    else:
-        cart_item = CartProduct(user_id=user_id, product_id=product_id, quantity=quantity)
-        db.session.add(cart_item)
-    db.session.commit()
+    add_item_to_cart(db, mongo_db, app.config['DB_STATUS'], user_id, product_id, quantity)
     return redirect(url_for('products'))
 
 @app.route('/place_order', methods=['POST'])
