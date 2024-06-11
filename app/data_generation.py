@@ -7,6 +7,17 @@ from app.models import User, Product, Category, Order, OrderProduct, ProductCate
 from mimesis import Generic
 import random
 
+
+def random_date_between(start_date, end_date):
+    return start_date + (end_date - start_date) * random.random()
+
+
+def random_past_date(start_years_ago, end_years_ago):
+    start_date = datetime.now() - timedelta(days=start_years_ago * 365)
+    end_date = datetime.now() - timedelta(days=end_years_ago * 365)
+    return start_date + (end_date - start_date) * random.random()
+
+
 def generate_sample_data(db):
     generic = Generic('en')
 
@@ -107,7 +118,7 @@ def generate_sample_data(db):
         last_name='Schlechttester',
         email='markus.schlechttester@mail.com',
         password='password',
-        date_registered=generic.datetime.datetime()
+        date_registered=random_past_date(0, 5)
     )
     users.append(test_user)
     db.session.add(test_user)
@@ -115,12 +126,13 @@ def generate_sample_data(db):
     for _ in range(9):
         first_name = generic.person.first_name()
         last_name = generic.person.last_name()
+        date_registered = random_past_date(0, 5)
         user = User(
             first_name=first_name,
             last_name=last_name,
             email= first_name.lower() + "." + last_name.lower() + "@mail.com",
             password="password",
-            date_registered=generic.datetime.datetime()
+            date_registered=date_registered
         )
         users.append(user)
         db.session.add(user)
@@ -138,10 +150,7 @@ def generate_sample_data(db):
     payment_status_probabilities = [0.95, 0.05]
 
     # Helper function to generate random past dates
-    def random_past_date(start_years_ago, end_years_ago):
-        start_date = datetime.now() - timedelta(days=start_years_ago * 365)
-        end_date = datetime.now() - timedelta(days=end_years_ago * 365)
-        return start_date + (end_date - start_date) * random.random()
+
 
     def choose_product(never_purchased_products, purchased_products):
         if not purchased_products:
@@ -195,7 +204,7 @@ def generate_sample_data(db):
             order_status = random.choices(order_status_choices, order_status_probabilities)[0]
 
             # Create order
-            date_placed = random_past_date(0, 5)
+            date_placed = random_date_between(date_registered, datetime.now())
             new_order = Order(
                 user_id=user.user_id,
                 date_placed=date_placed,

@@ -18,13 +18,13 @@
                     The database is initialized successfully!
                 </div>
                 <a href="{{ url_for('migrate_to_no_sql') }}" class="btn btn-primary mt-3">Migrate to NoSQL</a>
-                <h2>Database Overview</h2>
+                <h2>SQL Database Overview</h2>
                 <p>Number of Tables: {{ table_count }}</p>
                 <table class="table table-bordered">
                     <thead>
                         <tr>
                             <th>Table Name</th>
-                            <th>Number of Entries</th>
+                            <th>Number of Rows</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -40,21 +40,20 @@
                 <div class="alert alert-success" role="alert">
                     Database migrated to NoSQL successfully!
                 </div>
-{#                <-- TODO: number of collections instead #}
-                <h2>Database Overview</h2>
-                <p>Number of Tables: {{ table_count }}</p>
+                <h2>NoSQL Database Overview</h2>
+                <p>Number of Collections: {{ collection_count }}</p>
                 <table class="table table-bordered">
                     <thead>
                         <tr>
-                            <th>Table Name</th>
-                            <th>Number of Entries</th>
+                            <th>Collection Name</th>
+                            <th>Number of Documents</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for table in tables %}
+                        {% for collection in collections %}
                             <tr>
-                                <td>{{ table.name }}</td>
-                                <td>{{ table.entries }}</td>
+                                <td>{{ collection.name }}</td>
+                                <td>{{ collection.entries }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>

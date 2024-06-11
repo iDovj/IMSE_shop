@@ -28,6 +28,9 @@
             <a href="{{ url_for('report2') }}" class="btn btn-outline-light btn-custom me-2">
                 Report 2
             </a>
+            <a href="{{ url_for('users') }}" class="btn btn-outline-light btn-custom me-2">
+                Users
+            </a>
         {% endif %}
         <div class="collapse navbar-collapse justify-content-end">
             <ul class="navbar-nav">
@@ -37,6 +40,16 @@
     </nav>
 
     <div class="container mt-5">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         {% block content %}{% endblock %}
     </div>
 

@@ -10,6 +10,7 @@ from app.forms import LoginForm
 import sys
 import logging
 
+from app.reports import get_repeat_buyer_products, get_users_spending_over_threshold
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -62,7 +63,20 @@ def home():
 
 @app.route('/users')
 def users():
-    all_users = User.query.all()
+    db_status = app.config['DB_STATUS']
+    if db_status == 'SQL':
+        logger.debug('SQL Users')
+        all_users = User.query.order_by(User.user_id.asc()).all()
+    elif db_status == 'NO_SQL':
+        logger.debug('NO SQL Users')
+        users_collection = mongo_db['users']
+        all_users = users_collection.find().sort("_id", 1)  # Sort by _id in ascending order
+        all_users = list(all_users)  # Convert cursor to list for easier handling in the template
+
+        # Ensure each user document includes 'user_id' key
+        for user in all_users:
+            user['user_id'] = user['_id']
+
     return render_template('users.html', users=all_users)
 
 @app.route('/products')
@@ -186,15 +200,31 @@ def login():
 @app.route('/dashboard')
 def dashboard():
     tables = []
-    if session.get('db_status') != 'not_initialized':
+    collections = []
+    table_count = 0
+    collection_count = 0
+    db_status = app.config['DB_STATUS']
+
+    if db_status == 'SQL':
         inspector = inspect(db.engine)
         table_names = inspector.get_table_names()
         for table_name in table_names:
-            count = db.session.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar()  # Use text() for raw SQL
+            count = db.session.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar()
             tables.append({'name': table_name, 'entries': count})
+        table_count = len(tables)
+        logger.debug(f"Table count: {table_count}")
+        logger.debug(f"Tables: {tables}")
 
-    table_count = len(tables)
-    return render_template('db_management.html', tables=tables, table_count=table_count)
+    elif db_status == 'NO_SQL':
+        collection_names = mongo_db.list_collection_names()
+        for collection_name in collection_names:
+            count = mongo_db[collection_name].count_documents({})
+            collections.append({'name': collection_name, 'entries': count})
+        collection_count = len(collections)
+        logger.debug(f"Collection count: {collection_count}")
+        logger.debug(f"Collections: {collections}")
+
+    return render_template('db_management.html', tables=tables, table_count=table_count, collections=collections, collection_count=collection_count)
 
 @app.route('/initialize_db', methods=['POST'])
 def initialize_db():
@@ -210,28 +240,43 @@ def initialize_db():
 
 @app.route('/report1')
 def report1():
-    if session.get('db_status') == 'not_initialized':
+    db_status = app.config['DB_STATUS']
+    if db_status == 'not_initialized':
         flash('Database is not initialized', 'danger')
         return redirect(url_for('dashboard'))
-    from app.reports import get_users_spending_over_threshold
-    threshold = 1000  # Set threshold value here
-    report_data = get_users_spending_over_threshold(threshold)
-    return render_template('report1.html', report=report_data)
+    elif db_status == 'NO_SQL':
+        # TODO: needs to be implemented
+        flash('This report is currently not available for NoSQL', 'danger')
+        return redirect(url_for('dashboard'))
+    else:
+        threshold = 1000  # Set threshold value here
+        report_data = get_users_spending_over_threshold(threshold)
+        return render_template('report1.html', report=report_data)
 
 @app.route('/report2')
 def report2():
-    if session.get('db_status') == 'not_initialized':
+    db_status = app.config['DB_STATUS']
+    if db_status == 'not_initialized':
         flash('Database is not initialized', 'danger')
         return redirect(url_for('dashboard'))
-    from app.reports import get_repeat_buyer_products
-    report_entries = get_repeat_buyer_products()
-    return render_template('report2.html', report_entries=report_entries)
+    elif db_status == 'NO_SQL':
+        # TODO: needs to be implemented
+        flash('This report is currently not available for NoSQL', 'danger')
+        return redirect(url_for('dashboard'))
+    else:
+        report_entries = get_repeat_buyer_products()
+        return render_template('report2.html', report_entries=report_entries)
 
 @app.route('/migrate_to_no_sql')
 def migrate_to_no_sql():
     logger.debug("migrate_to_no_sql route accessed")
     migrate(db, mongo_db)
-    # TODO: drop SQL tables
+
+    # Drop all SQL tables
+    with app.app_context():
+        db.drop_all()
+        logger.debug("All SQL tables have been dropped")
+
     app.config['DB_STATUS'] = 'NO_SQL'
     # flash('Database copied to NoSQL successfully!', 'success')
     return redirect(url_for('dashboard'))

@@ -5,8 +5,69 @@
 {% block content %}
     <div class="container">
         <h1>Welcome to the Online Store</h1>
-        <div class="btn-group" role="group" aria-label="Basic example">
-            <a class="btn btn-primary" href="{{ url_for('users') }}">View Users</a>
-        </div>
+
+        <h2>Main use case: Place order (I. Dovzhenko)</h2>
+        <p><strong>Objective:</strong> The user wants to place an order with items from their shopping cart.</p>
+        <p><strong>Preconditions:</strong></p>
+        <ul>
+            <li>The user is logged in to their account.</li>
+            <li>The user has items in their shopping cart.</li>
+        </ul>
+        <p><strong>Basic flow:</strong></p>
+        <ul>
+            <li>The user navigates to the shopping cart page.</li>
+            <li>The server retrieves the items in the user's cart from the database.</li>
+            <li>The server displays the cart items, including details and quantities, to the user.</li>
+            <li>The user reviews the items and confirms they wish to proceed with the purchase.</li>
+            <li>The server checks the availability of the items from the stock.</li>
+            <li>If items are available, the server creates the order with a unique order ID.</li>
+            <li>The server updates the database to reflect the new order and deducts the stock quantity accordingly.</li>
+            <li>The server confirms the order placement to the user.</li>
+        </ul>
+        <p><strong>Alternative flow:</strong></p>
+        <p>If the server finds that some items are not available:</p>
+        <ul>
+            <li>The server notifies the user of the unavailable items.</li>
+            <li>The user then restarts the order process by returning to the shopping cart page.</li>
+        </ul>
+        <p><strong>Postconditions:</strong></p>
+        <ul>
+            <li>If the order is successfully placed, the user's cart is emptied of the purchased items.</li>
+            <li>The user can view the placed order and its status on their orders page.</li>
+        </ul>
+
+        <h2>Main use case: Cancel order (A. Nittmann)</h2>
+        <p><strong>Objective:</strong> The user wants to cancel an order.</p>
+        <p><strong>Preconditions:</strong></p>
+        <ul>
+            <li>The user has placed an order.</li>
+            <li>The order status has not progressed beyond “preparing shipment”.</li>
+        </ul>
+        <p><strong>Basic flow:</strong></p>
+        <ul>
+            <li>The user navigates to the orders page.</li>
+            <li>The server looks up the user’s orders from the database.</li>
+            <li>The server displays the result, i.e. the orders, to the user.</li>
+            <li>The user chooses an eligible order to be cancelled.</li>
+            <li>The user clicks on the “Cancel” button next to the order to be cancelled.</li>
+            <li>The client responds by asking if the user really wants to cancel the selected order.</li>
+            <li>The user clicks “Yes”.</li>
+            <li>The server updates the database by setting the order status to “cancelled” and putting the items inside the order back to inventory (i.e. increasing the quantity in store of the respective products).</li>
+            <li>The client displays to the user that the order has been successfully cancelled.</li>
+        </ul>
+        <p><strong>Alternative flow:</strong></p>
+        <ul>
+            <li>The user navigates to the orders page.</li>
+            <li>The server looks up the user’s orders from the database.</li>
+            <li>The server displays the result, i.e. the orders, to the user.</li>
+            <li>The user chooses an eligible order to be cancelled.</li>
+            <li>The user clicks on the “Cancel” button next to the order to be cancelled.</li>
+            <li>The client responds by asking if the user really wants to cancel the selected order.</li>
+            <li>The user has a change of heart and clicks “No”.</li>
+        </ul>
+        <p><strong>Postconditions:</strong></p>
+        <ul>
+            <li>The user is back at the orders page.</li>
+        </ul>
     </div>
 {% endblock %}
