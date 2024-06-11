@@ -2,7 +2,8 @@ import pymongo
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import joinedload
-from app.database_functions import find_all_products, find_all_orders, get_cart, add_item_to_cart, place_new_order
+from app.database_functions import find_all_products, find_all_orders, get_cart, add_item_to_cart, place_new_order, \
+    cancel_this_order
 from app.models import User, Product, Order, OrderProduct, CartProduct, Invoice, Accessory, Category, db
 from app.migrate_functions import migrate, reset_mongo_db
 from app.forms import LoginForm
@@ -81,19 +82,14 @@ def orders():
 
 @app.route('/cancel_order/<int:order_id>', methods=['POST'])
 def cancel_order(order_id):
-    order = Order.query.get(order_id)
-    if order and order.order_status in ['Pending', 'Processing']:
-        # Update the product quantities
-        for order_product in order.order_products:
-            product = order_product.product
-            product.quantity += order_product.quantity
+    user_id = session.get('user_id')
+    if user_id is None:
+        flash('You need to be logged in to cancel an order.', 'warning')
+        return redirect(url_for('login'))
 
-        # Change the order status to 'Canceled'
-        order.order_status = 'Canceled'
-        db.session.commit()
-        flash('Order has been canceled and products have been restocked.', 'success')
-    else:
-        flash('Order cannot be canceled.', 'danger')
+    db_status = app.config['DB_STATUS']
+    status, message = cancel_this_order(db, mongo_db, db_status, user_id, order_id)
+    flash(message, status)
     return redirect(url_for('orders'))
 
 @app.route('/logout')

@@ -58,6 +58,11 @@ def find_all_orders(db, mongo_db, db_status, user_id):
                   .filter(Order.user_id == user_id)
                   .order_by(Order.date_placed.desc())
                   .all())
+
+        # Sort the products within each order by product_id
+        for order in orders:
+            order.order_products = sorted(order.order_products, key=lambda x: x.product_id)
+
         return orders
 
     elif db_status == 'NO_SQL':
@@ -81,7 +86,10 @@ def find_all_orders(db, mongo_db, db_status, user_id):
                 "invoice": order.get("invoice", {})
             }
 
-            for order_product in order.get("order_products", []):
+            # Sort the products within each order by product_id (_id in MongoDB)
+            sorted_order_products = sorted(order.get("order_products", []), key=lambda x: x["product_id"])
+
+            for order_product in sorted_order_products:
                 product = mongo_db['products'].find_one({"_id": order_product["product_id"]})
                 if product:
                     order_product_dict = {
@@ -255,3 +263,47 @@ def place_new_order(db, mongo_db, db_status, user_id):
         )
 
     return {"status": "success", "message": "Order placed successfully!", "order_id": new_order_id}
+
+def cancel_this_order(db, mongo_db, db_status, user_id, order_id):
+    if db_status == 'SQL':
+        order = Order.query.get(order_id)
+        if order and order.order_status in ['Pending', 'Processing']:
+            # Update the product quantities
+            for order_product in order.order_products:
+                product = order_product.product
+                product.quantity += order_product.quantity
+
+            # Change the order status to 'Canceled'
+            order.order_status = 'Canceled'
+            db.session.commit()
+            return 'success', 'Order has been canceled and products have been restocked.'
+        else:
+            return 'danger', 'Order cannot be canceled.'
+
+    elif db_status == 'NO_SQL':
+        users_collection = mongo_db['users']
+        products_collection = mongo_db['products']
+
+        # Find the user containing the order
+        user = users_collection.find_one({"_id": user_id})
+        if user:
+            order = next((order for order in user['orders'] if order['order_id'] == order_id), None)
+            if order and order['order_status'] in ['Pending', 'Processing']:
+                # Update the product quantities
+                for order_product in order['order_products']:
+                    product_id = order_product['product_id']
+                    quantity = order_product['quantity']
+                    products_collection.update_one({"_id": product_id}, {"$inc": {"quantity": quantity}})
+
+                # Change the order status to 'Canceled'
+                users_collection.update_one(
+                    {"_id": user_id, "orders.order_id": order_id},
+                    {"$set": {"orders.$.order_status": 'Canceled'}}
+                )
+                return 'success', 'Order has been canceled and products have been restocked.'
+            else:
+                return 'danger', 'Order cannot be canceled.'
+        else:
+            return 'danger', 'Order cannot be found.'
+
+    return 'danger', 'Unknown database status.'
