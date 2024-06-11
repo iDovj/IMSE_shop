@@ -10,7 +10,8 @@ from app.forms import LoginForm
 import sys
 import logging
 
-from app.reports import get_repeat_buyer_products, get_users_spending_over_threshold
+from app.reports import get_users_spending_over_threshold, get_repeat_buyer_products_sql, \
+    get_repeat_buyer_products_no_sql
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -261,10 +262,12 @@ def report2():
         return redirect(url_for('dashboard'))
     elif db_status == 'NO_SQL':
         # TODO: needs to be implemented
-        flash('This report is currently not available for NoSQL', 'danger')
-        return redirect(url_for('dashboard'))
+        # flash('This report is currently not available for NoSQL', 'danger')
+        # return redirect(url_for('dashboard'))
+        report_entries = get_repeat_buyer_products_no_sql(mongo_db)
+        return render_template('report2.html', report_entries=report_entries)
     else:
-        report_entries = get_repeat_buyer_products()
+        report_entries = get_repeat_buyer_products_sql()
         return render_template('report2.html', report_entries=report_entries)
 
 @app.route('/migrate_to_no_sql')

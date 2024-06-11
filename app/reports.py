@@ -31,7 +31,7 @@ def get_users_spending_over_threshold(threshold):
     return results
 
 
-def get_repeat_buyer_products():
+def get_repeat_buyer_products_sql():
     # Define the one-year interval
     one_year_ago = datetime.now() - timedelta(days=365)
 
@@ -62,7 +62,53 @@ def get_repeat_buyer_products():
         )
         .join(subquery, Product.product_id == subquery.c.product_id)
         .group_by(Product.product_id, Product.product_name)
-        .order_by(func.count(subquery.c.user_id).desc())
+        .order_by(func.count(subquery.c.user_id).desc(), Product.product_id.asc())
     )
 
     return query.all()
+
+
+def get_repeat_buyer_products_no_sql(mongo_db):
+    one_year_ago = datetime.utcnow() - timedelta(days=365)
+
+    pipeline = [
+        {"$unwind": "$orders"},
+        {"$match": {"orders.date_placed": {"$gte": one_year_ago}}},
+        {"$unwind": "$orders.order_products"},
+        {
+            "$group": {
+                "_id": {
+                    "product_id": "$orders.order_products.product_id",
+                    "user_id": "$_id"
+                },
+                "order_count": {"$sum": 1}
+            }
+        },
+        {"$match": {"order_count": {"$gte": 2}}},
+        {
+            "$group": {
+                "_id": "$_id.product_id",
+                "multiple_buyer_count": {"$sum": 1}
+            }
+        },
+        {"$sort": {"multiple_buyer_count": -1, "_id": 1}},
+        {
+            "$lookup": {
+                "from": "products",
+                "localField": "_id",
+                "foreignField": "_id",
+                "as": "product_details"
+            }
+        },
+        {"$unwind": "$product_details"},
+        {
+            "$project": {
+                "product_id": "$product_details._id",
+                "product_name": "$product_details.product_name",
+                "multiple_buyer_count": 1
+            }
+        }
+    ]
+
+    result = mongo_db['users'].aggregate(pipeline)
+    return list(result)
