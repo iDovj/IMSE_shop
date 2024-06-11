@@ -1,20 +1,29 @@
 import logging
+from datetime import datetime
 
+from bson import Decimal128
 from sqlalchemy.orm import joinedload
 
-from app.models import Product, Order, OrderProduct, CartProduct
+from app.models import Product, Order, OrderProduct, CartProduct, Invoice
 
 logger = logging.getLogger(__name__)
 
 def find_all_products(db, mongo_db, db_status):
     if db_status == 'SQL':
         logger.debug('SQL Products')
-        return Product.query.options(joinedload(Product.categories)).all()
+        products = Product.query.options(joinedload(Product.categories)).order_by(Product.product_id.asc()).all()
+
+        # Sorting categories for each product
+        for product in products:
+            product.categories.sort(key=lambda c: c.category_id)
+
+        return products
+
     elif db_status == 'NO_SQL':
         products_collection = mongo_db['products']
         categories_collection = mongo_db['categories']
         logger.debug('NO SQL Products')
-        products = products_collection.find()
+        products = products_collection.find().sort("_id", 1)  # Sort by _id in ascending order
         processed_products = []
 
         for product in products:
@@ -27,7 +36,10 @@ def find_all_products(db, mongo_db, db_status):
                 "categories": []
             }
 
-            for category_id in product.get("category_ids", []):
+            category_ids = product.get("category_ids", [])
+            sorted_category_ids = sorted(category_ids)  # Sort category IDs
+
+            for category_id in sorted_category_ids:
                 category = categories_collection.find_one({"_id": category_id})
                 if category:
                     product_dict["categories"].append({
@@ -143,3 +155,103 @@ def add_item_to_cart(db, mongo_db, db_status, user_id, product_id, quantity):
             })
 
         users_collection.update_one({"_id": user_id}, {"$set": {"cart_products": user['cart_products']}})
+
+
+def place_new_order(db, mongo_db, db_status, user_id):
+    if db_status == 'SQL':
+        cart_items = CartProduct.query.filter_by(user_id=user_id).all()
+
+        if not cart_items:
+            return {"status": "error", "message": "Your cart is empty!"}
+
+        new_order = Order(user_id=user_id, order_status='Pending')
+        db.session.add(new_order)
+        db.session.commit()
+
+        new_order_id = new_order.order_id
+        logger.debug(f"New order id: {new_order_id}")
+
+        total_cost = 0
+        for item in cart_items:
+            order_product = OrderProduct(
+                order_id=new_order_id,  # Use the flushed order_id
+                product_id=item.product_id,
+                quantity=item.quantity
+            )
+            db.session.add(order_product)
+            db.session.commit()
+
+            product = Product.query.get(item.product_id)
+            product.quantity -= item.quantity
+            total_cost += item.quantity * product.price
+
+        new_invoice = Invoice(order_id=new_order.order_id, total_cost=total_cost, payment_status='Unpaid')
+        db.session.add(new_invoice)
+        db.session.commit()
+
+        CartProduct.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+
+
+    elif db_status == 'NO_SQL':
+        users_collection = mongo_db['users']
+        products_collection = mongo_db['products']
+        user = users_collection.find_one({"_id": user_id})
+
+        if not user or not user.get("cart_products"):
+            return {"status": "error", "message": "Your cart is empty!"}
+
+        cart_items = user['cart_products']
+        total_cost = 0
+        order_products = []
+
+        for item in cart_items:
+            product = products_collection.find_one({"_id": item["product_id"]})
+            if not product:
+                continue
+            order_products.append({
+                "product_id": product["_id"],
+                "quantity": item["quantity"],
+                "product_name": product["product_name"],
+                "price": product["price"]
+            })
+            products_collection.update_one(
+                {"_id": product["_id"]},
+                {"$inc": {"quantity": -item["quantity"]}}
+            )
+
+            total_cost += item["quantity"] * float(product["price"].to_decimal())
+
+        # Calculate the new order ID by looking at all order IDs from all users
+        all_users = users_collection.find()
+        max_order_id = 0
+
+        for user in all_users:
+            for order in user.get("orders", []):
+                if order["order_id"] > max_order_id:
+                    max_order_id = order["order_id"]
+
+        logger.debug(f"Max order id: {max_order_id}")
+        new_order_id = max_order_id + 1
+        new_order = {
+            "order_id": new_order_id,
+            "date_placed": datetime.utcnow(),
+            "order_status": 'Pending',
+            "order_products": order_products,
+            "invoice": {
+                "invoice_id": new_order_id,  # Using the same ID for simplicity
+                "total_cost": Decimal128(str(total_cost)),
+                "date_issued": datetime.utcnow(),
+                "payment_status": 'Unpaid'
+            }
+        }
+
+        users_collection.update_one(
+            {"_id": user_id},
+            {
+                "$push": {"orders": new_order},
+                "$set": {"cart_products": []}  # Clear the cart after placing the order
+            }
+        )
+
+    return {"status": "success", "message": "Order placed successfully!", "order_id": new_order_id}

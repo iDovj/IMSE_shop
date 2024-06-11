@@ -2,7 +2,7 @@ import pymongo
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import joinedload
-from app.database_functions import find_all_products, find_all_orders, get_cart, add_item_to_cart
+from app.database_functions import find_all_products, find_all_orders, get_cart, add_item_to_cart, place_new_order
 from app.models import User, Product, Order, OrderProduct, CartProduct, Invoice, Accessory, Category, db
 from app.migrate_functions import migrate, reset_mongo_db
 from app.forms import LoginForm
@@ -127,43 +127,43 @@ def add_to_cart(product_id):
 @app.route('/place_order', methods=['POST'])
 def place_order():
     user_id = session.get('user_id', 1)  # Temporarily for testing
-    cart_items = CartProduct.query.filter_by(user_id=user_id).all()
-
-    if not cart_items:
-        flash("Your cart is empty!", "danger")
+    result = place_new_order(db, mongo_db, app.config['DB_STATUS'], user_id)
+    if result["status"] == "error":
+        flash(result["message"], "danger")
         return redirect(url_for('cart'))
 
-    new_order = Order(user_id=user_id, order_status='Pending')
-    db.session.add(new_order)
-    db.session.commit()
-
-    total_cost = 0
-    for item in cart_items:
-        order_product = OrderProduct(
-            order_id=new_order.order_id,
-            product_id=item.product_id,
-            quantity=item.quantity
-        )
-        db.session.add(order_product)
-
-        product = Product.query.get(item.product_id)
-        product.quantity -= item.quantity
-        total_cost += item.quantity * product.price
-        db.session.commit()
-
-    new_invoice = Invoice(order_id=new_order.order_id, total_cost=total_cost, payment_status='Paid')
-    db.session.add(new_invoice)
-    db.session.commit()
-
-    CartProduct.query.filter_by(user_id=user_id).delete()
-    db.session.commit()
-
-    flash('Order placed successfully!', 'success')
-    return redirect(url_for('order_detail', order_id=new_order.order_id))
+    flash(result["message"], "success")
+    return redirect(url_for('order_detail', order_id=result.get("order_id", 0)))
 
 @app.route('/order/<int:order_id>')
 def order_detail(order_id):
-    order = Order.query.get_or_404(order_id)
+    if app.config['DB_STATUS'] == 'SQL':
+        order = Order.query.get_or_404(order_id)
+        order = {'order_id': order.order_id,
+                  'date_placed': order.date_placed,
+                  'status': order.order_status,
+                 'order_product':
+                     [{'product_name': order_product.product.product_name,
+                   'quantity': order_product.quantity} for order_product in order.order_products],
+                 'invoice':
+                     {'total_cost': order.invoice.total_cost}
+                 }
+    else:
+        users_collection = mongo_db['users']
+        products_collection = mongo_db['products']
+        order = None
+        user = users_collection.find_one({"orders.order_id": order_id}, {"orders.$": 1})
+        if user and "orders" in user and user["orders"]:
+            order = user["orders"][0]
+            # Fetch product details for each order_product
+            for order_product in order["order_products"]:
+                product = products_collection.find_one({"_id": order_product["product_id"]})
+                order_product["product_name"] = product["product_name"]
+                order_product["price"] = product["price"]
+        if not order:
+            return "Order not found", 404
+
+    logger.debug(f'New order: {order}')
     return render_template('order_detail.html', order=order)
 
 @app.route('/login', methods=['GET', 'POST'])

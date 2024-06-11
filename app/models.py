@@ -12,8 +12,8 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(257), nullable=False)
     date_registered = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
-    orders = db.relationship('Order', back_populates='user', lazy=True)
-    cart_products = db.relationship('CartProduct', back_populates='user', lazy=True)
+    orders = db.relationship('Order', back_populates='user', lazy='joined')
+    cart_products = db.relationship('CartProduct', back_populates='user', lazy='joined')
 
 # OK
 class Product(db.Model):
@@ -24,8 +24,8 @@ class Product(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     product_desc = db.Column(db.String(500), nullable=True)
     categories = db.relationship('Category', secondary='product_category', back_populates='products')
-    cart_products = db.relationship('CartProduct', back_populates='product', lazy=True)
-    order_products = db.relationship('OrderProduct', back_populates='product', lazy=True)
+    cart_products = db.relationship('CartProduct', back_populates='product', lazy='joined')
+    order_products = db.relationship('OrderProduct', back_populates='product', lazy='joined')
 
 class Category(db.Model):
     __tablename__ = 'category'
@@ -59,7 +59,7 @@ class Order(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.user_id'), nullable=False)
     date_placed = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
     order_status = db.Column(db.String(50), nullable=False)
-    order_products = db.relationship('OrderProduct', back_populates='order', lazy=True)
+    order_products = db.relationship('OrderProduct', back_populates='order', lazy='joined')
     invoice = db.relationship('Invoice', back_populates='order', cascade='all, delete-orphan', uselist=False)
     user = db.relationship('User', back_populates='orders')
 
