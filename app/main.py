@@ -182,17 +182,25 @@ def order_detail(order_id):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
+    db_status = app.config['DB_STATUS']
     if request.method == 'POST' and form.validate_on_submit():
         email = form.email.data
         password = form.password.data
-        user = User.query.filter_by(email=email).first()
+
+        if db_status == 'SQL':
+            user = User.query.filter_by(email=email).first()
+        elif db_status == 'NO_SQL':
+            users_collection = mongo_db['users']
+            user = users_collection.find_one({"email": email})
+
         if user:
-            logger.debug(f"User found: {user.user_id}")
+            logger.debug(f"User found: {user.get('user_id') if db_status == 'NO_SQL' else user.user_id}")
         else:
-            logger.debug(f"No user found")
-        if user and password == user.password:
-            session['user_id'] = user.user_id
-            session['first_name'] = user.first_name
+            logger.debug("No user found")
+
+        if user and password == (user.get('password') if db_status == 'NO_SQL' else user.password):
+            session['user_id'] = user.get('user_id') if db_status == 'NO_SQL' else user.user_id
+            session['first_name'] = user.get('first_name') if db_status == 'NO_SQL' else user.first_name
             flash('Login successful', 'success')
             session['logged_in'] = True
             return redirect(url_for('home'))
