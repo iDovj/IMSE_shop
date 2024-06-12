@@ -199,7 +199,7 @@ def login():
             logger.debug("No user found")
 
         if user and password == (user.get('password') if db_status == 'NO_SQL' else user.password):
-            session['user_id'] = user.get('user_id') if db_status == 'NO_SQL' else user.user_id
+            session['user_id'] = user.get('_id') if db_status == 'NO_SQL' else user.user_id
             session['first_name'] = user.get('first_name') if db_status == 'NO_SQL' else user.first_name
             flash('Login successful', 'success')
             session['logged_in'] = True
