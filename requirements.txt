@@ -21,3 +21,4 @@ MarkupSafe==2.1.5
 six==1.16.0
 greenlet==3.0.3
 typing-extensions==4.12.2
+cryptography==42.0.8

@@ -10,7 +10,7 @@ class User(db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(257), nullable=False)
+    password = db.Column(db.String(64), nullable=False)
     date_registered = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
     orders = db.relationship('Order', back_populates='user', lazy='joined')
     cart_products = db.relationship('CartProduct', back_populates='user', lazy='joined')

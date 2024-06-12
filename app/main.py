@@ -1,3 +1,5 @@
+import time
+
 import pymongo
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from sqlalchemy import inspect, text
@@ -254,21 +256,47 @@ def report1():
         report_data = get_users_spending_over_threshold(threshold)
         return render_template('report1.html', report=report_data)
 
+
 @app.route('/report2')
 def report2():
     db_status = app.config['DB_STATUS']
     if db_status == 'not_initialized':
         flash('Database is not initialized', 'danger')
         return redirect(url_for('dashboard'))
-    elif db_status == 'NO_SQL':
-        # TODO: needs to be implemented
-        # flash('This report is currently not available for NoSQL', 'danger')
-        # return redirect(url_for('dashboard'))
+
+    if db_status == 'NO_SQL':
+        start_time = time.time()
         report_entries = get_repeat_buyer_products_no_sql(mongo_db)
-        return render_template('report2.html', report_entries=report_entries)
+        end_time = time.time()
+        duration = (end_time - start_time) * 1000
+        logger.debug(f"Runtime for NoSQL branch without indices: {duration:.2f} milliseconds")
+
+        mongo_db['users'].create_index([('orders.date_placed', -1)])
+        mongo_db['users'].create_index([('orders.order_products.product_id', 1)])
+        start_time = time.time()
+        report_entries = get_repeat_buyer_products_no_sql(mongo_db)
+        end_time = time.time()
+        duration = (end_time - start_time) * 1000
+        logger.debug(f"Runtime for NoSQL branch with indices: {duration:.2f} milliseconds")
+
+        mongo_db['users'].create_index([('orders.date_placed', -1), ('orders.order_products.product_id', 1)])
+        start_time = time.time()
+        report_entries = get_repeat_buyer_products_no_sql(mongo_db)
+        end_time = time.time()
+        duration = (end_time - start_time) * 1000
+        logger.debug(f"Runtime for NoSQL branch with indices and compound index: {duration:.2f} milliseconds")
+
+        mongo_db['users'].drop_index([('orders.date_placed', -1)])
+        mongo_db['users'].drop_index([('orders.order_products.product_id', 1)])
+        mongo_db['users'].drop_index([('orders.date_placed', -1), ('orders.order_products.product_id', 1)])
     else:
+        start_time = time.time()
         report_entries = get_repeat_buyer_products_sql()
-        return render_template('report2.html', report_entries=report_entries)
+        end_time = time.time()
+        duration = (end_time - start_time) * 1000
+        logger.debug(f"Runtime for SQL branch: {duration:.2f} milliseconds")
+
+    return render_template('report2.html', report_entries=report_entries)
 
 @app.route('/migrate_to_no_sql')
 def migrate_to_no_sql():
