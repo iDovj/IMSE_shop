@@ -1,6 +1,6 @@
 db.users.aggregate([
-    { "$unwind": "$orders" },
     { "$match": { "orders.date_placed": { "$gte": new Date(new Date().setFullYear(new Date().getFullYear() - 1)) } } },
+    { "$unwind": "$orders" },
     { "$unwind": "$orders.order_products" },
     {
         "$group": {
@@ -35,4 +35,4 @@ db.users.aggregate([
             "multiple_buyer_count": 1
         }
     }
-]).pretty()
+])

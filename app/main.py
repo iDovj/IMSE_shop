@@ -13,7 +13,7 @@ import sys
 import logging
 
 from app.reports import get_users_spending_over_threshold, get_repeat_buyer_products_sql, \
-    get_repeat_buyer_products_no_sql
+    get_repeat_buyer_products_no_sql, log_exec_stats_repeat_buyer_products_no_sql
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -273,30 +273,24 @@ def report2():
         return redirect(url_for('dashboard'))
 
     if db_status == 'NO_SQL':
-        start_time = time.time()
-        report_entries = get_repeat_buyer_products_no_sql(mongo_db)
-        end_time = time.time()
-        duration = (end_time - start_time) * 1000
-        logger.debug(f"Runtime for NoSQL branch without indices: {duration:.2f} milliseconds")
+        # No indexes
+        log_exec_stats_repeat_buyer_products_no_sql(mongo_db, mongo_client)
+        log_exec_stats_repeat_buyer_products_no_sql(mongo_db, mongo_client)
 
-        mongo_db['users'].create_index([('orders.date_placed', -1)])
+        # With indexes
+        mongo_db['users'].create_index([('orders.date_placed', 1)])
         mongo_db['users'].create_index([('orders.order_products.product_id', 1)])
-        start_time = time.time()
-        report_entries = get_repeat_buyer_products_no_sql(mongo_db)
-        end_time = time.time()
-        duration = (end_time - start_time) * 1000
-        logger.debug(f"Runtime for NoSQL branch with indices: {duration:.2f} milliseconds")
+        log_exec_stats_repeat_buyer_products_no_sql(mongo_db, mongo_client)
 
-        mongo_db['users'].create_index([('orders.date_placed', -1), ('orders.order_products.product_id', 1)])
-        start_time = time.time()
-        report_entries = get_repeat_buyer_products_no_sql(mongo_db)
-        end_time = time.time()
-        duration = (end_time - start_time) * 1000
-        logger.debug(f"Runtime for NoSQL branch with indices and compound index: {duration:.2f} milliseconds")
+        # With indexes and composite index
+        mongo_db['users'].create_index([('orders.date_placed', 1), ('orders.order_products.product_id', 1)])
+        log_exec_stats_repeat_buyer_products_no_sql(mongo_db, mongo_client)
 
-        mongo_db['users'].drop_index([('orders.date_placed', -1)])
+        report_entries = get_repeat_buyer_products_no_sql(mongo_db)
+
+        mongo_db['users'].drop_index([('orders.date_placed', 1)])
         mongo_db['users'].drop_index([('orders.order_products.product_id', 1)])
-        mongo_db['users'].drop_index([('orders.date_placed', -1), ('orders.order_products.product_id', 1)])
+        mongo_db['users'].drop_index([('orders.date_placed', 1), ('orders.order_products.product_id', 1)])
     else:
         start_time = time.time()
         report_entries = get_repeat_buyer_products_sql()
