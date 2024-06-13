@@ -25,7 +25,6 @@ def migrate(db, mongo_db):
 
     # Migrate Product data next
     products_collection = mongo_db["products"]
-    productcategories_collection = mongo_db["productcategories"]
     products = session.query(Product).all()
     for product in products:
         product_dict = {
@@ -41,13 +40,7 @@ def migrate(db, mongo_db):
         }
         products_collection.insert_one(product_dict)
 
-        # Migrate ProductCategory data
-        for category_id in product_dict["category_ids"]:
-            product_category_dict = {
-                "product_id": product.product_id,
-                "category_id": category_id
-            }
-            productcategories_collection.insert_one(product_category_dict)
+
 
 
     # Migrate User data last
