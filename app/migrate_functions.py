@@ -96,4 +96,8 @@ def migrate(db, mongo_db):
 
         users_collection.insert_one(user_dict)
 
+        mongo_db['users'].create_index([("orders.date_placed", 1)])
+        mongo_db['users'].create_index([("orders.order_products.product_id", 1)])
+        mongo_db['products'].create_index([("category_ids", 1)])
+
     session.close()
