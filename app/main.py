@@ -13,7 +13,8 @@ import sys
 import logging
 
 from app.reports import get_users_spending_over_threshold, get_repeat_buyer_products_sql, \
-    get_repeat_buyer_products_no_sql, log_exec_stats_repeat_buyer_products_no_sql
+    get_repeat_buyer_products_no_sql, log_exec_stats_repeat_buyer_products_no_sql, \
+    get_users_spending_over_threshold_mongo
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -255,15 +256,15 @@ def report1():
     if db_status == 'not_initialized':
         flash('Database is not initialized', 'danger')
         return redirect(url_for('dashboard'))
-    elif db_status == 'NO_SQL':
-        # TODO: needs to be implemented
-        flash('This report is currently not available for NoSQL', 'danger')
-        return redirect(url_for('dashboard'))
-    else:
-        threshold = 1000  # Set threshold value here
-        report_data = get_users_spending_over_threshold(threshold)
-        return render_template('report1.html', report=report_data)
+    
+    threshold = 1000  # Set threshold value here
 
+    if db_status == 'NO_SQL':
+        report_data = get_users_spending_over_threshold_mongo(mongo_db, threshold)
+    else:
+        report_data = get_users_spending_over_threshold(threshold)
+
+    return render_template('report1.html', report=report_data)
 
 @app.route('/report2')
 def report2():
