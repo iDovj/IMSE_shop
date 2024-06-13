@@ -131,17 +131,8 @@ def get_users_spending_over_threshold_mongo(mongo_db, threshold):
         {"$unwind": "$product_details"},
         {
             "$lookup": {
-                "from": "productcategories",
-                "localField": "product_details._id",
-                "foreignField": "product_id",
-                "as": "product_category"
-            }
-        },
-        {"$unwind": "$product_category"},
-        {
-            "$lookup": {
                 "from": "categories",
-                "localField": "product_category.category_id",
+                "localField": "product_details.category_ids",
                 "foreignField": "_id",
                 "as": "category_details"
             }
