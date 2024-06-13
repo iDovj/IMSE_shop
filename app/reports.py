@@ -1,3 +1,5 @@
+import logging
+import time
 from datetime import datetime, timedelta
 
 from sqlalchemy import func
@@ -5,6 +7,8 @@ from sqlalchemy.orm import aliased
 
 from .models import User, Order, OrderProduct, Product, Category, Invoice, ProductCategory
 from app.main import db
+
+logger = logging.getLogger(__name__)
 
 def get_users_spending_over_threshold(threshold):
     results = db.session.query(
@@ -72,8 +76,8 @@ def get_repeat_buyer_products_no_sql(mongo_db):
     one_year_ago = datetime.utcnow() - timedelta(days=365)
 
     pipeline = [
-        {"$unwind": "$orders"},
         {"$match": {"orders.date_placed": {"$gte": one_year_ago}}},
+        {"$unwind": "$orders"},
         {"$unwind": "$orders.order_products"},
         {
             "$group": {
@@ -113,12 +117,67 @@ def get_repeat_buyer_products_no_sql(mongo_db):
     result = mongo_db['users'].aggregate(pipeline)
     return list(result)
 
+def log_exec_stats_repeat_buyer_products_no_sql(mongo_db, mongo_client):
+     one_year_ago = datetime.utcnow() - timedelta(days=365)
+
+     pipeline = [
+         {"$match": {"orders.date_placed": {"$gte": one_year_ago}}},
+         {"$unwind": "$orders"},
+         {"$unwind": "$orders.order_products"},
+         {
+             "$group": {
+                 "_id": {
+                     "product_id": "$orders.order_products.product_id",
+                     "user_id": "$_id"
+                 },
+                 "order_count": {"$sum": 1}
+             }
+         },
+         {"$match": {"order_count": {"$gte": 2}}},
+         {
+             "$group": {
+                 "_id": "$_id.product_id",
+                 "multiple_buyer_count": {"$sum": 1}
+             }
+         },
+         {"$sort": {"multiple_buyer_count": -1, "_id": 1}},
+         {
+             "$lookup": {
+                 "from": "products",
+                 "localField": "_id",
+                 "foreignField": "_id",
+                 "as": "product_details"
+             }
+         },
+         {"$unwind": "$product_details"},
+         {
+             "$project": {
+                 "product_id": "$product_details._id",
+                 "product_name": "$product_details.product_name",
+                 "multiple_buyer_count": 1
+             }
+         }
+     ]
+
+     execution_stats = mongo_db.command(
+        'explain',
+        {
+            'aggregate': "users",
+            'pipeline': pipeline,
+            'cursor': {}
+        },
+        verbosity='executionStats'
+     )
+
+     execution_time_millis = execution_stats['stages'][0]['$cursor']['executionStats']['executionTimeMillis']
+
+     logger.debug(f"Execution Time Millis: {execution_time_millis}")
 
 def get_users_spending_over_threshold_mongo(mongo_db, threshold):
     six_months_ago = datetime.utcnow() - timedelta(days=180)
     pipeline = [
-        {"$unwind": "$orders"},
         {"$match": {"orders.date_placed": {"$gte": six_months_ago}}},
+        {"$unwind": "$orders"},
         {"$unwind": "$orders.order_products"},
         {
             "$lookup": {

@@ -25,4 +25,5 @@ JOIN
 GROUP BY
     p.product_id, p.product_name
 ORDER BY
-    multiple_buyer_count DESC;
+    multiple_buyer_count DESC,
+    p.product_id ASC;
