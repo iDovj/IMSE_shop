@@ -256,7 +256,7 @@ def report1():
         flash('Database is not initialized', 'danger')
         return redirect(url_for('dashboard'))
     
-    threshold = 1000  # Set threshold value here
+    threshold = 5000  # Set threshold value here
 
     if db_status == 'NO_SQL':
         report_data = get_users_spending_over_threshold_mongo(mongo_db, threshold)
