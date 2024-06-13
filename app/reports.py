@@ -112,3 +112,56 @@ def get_repeat_buyer_products_no_sql(mongo_db):
 
     result = mongo_db['users'].aggregate(pipeline)
     return list(result)
+
+
+def get_users_spending_over_threshold_mongo(mongo_db, threshold):
+    six_months_ago = datetime.utcnow() - timedelta(days=180)
+    pipeline = [
+        {"$unwind": "$orders"},
+        {"$match": {"orders.date_placed": {"$gte": six_months_ago}}},
+        {"$unwind": "$orders.order_products"},
+        {
+            "$lookup": {
+                "from": "products",
+                "localField": "orders.order_products.product_id",
+                "foreignField": "_id",
+                "as": "product_details"
+            }
+        },
+        {"$unwind": "$product_details"},
+        {
+            "$lookup": {
+                "from": "productcategories",
+                "localField": "product_details._id",
+                "foreignField": "product_id",
+                "as": "product_category"
+            }
+        },
+        {"$unwind": "$product_category"},
+        {
+            "$lookup": {
+                "from": "categories",
+                "localField": "product_category.category_id",
+                "foreignField": "_id",
+                "as": "category_details"
+            }
+        },
+        {"$unwind": "$category_details"},
+        {
+            "$group": {
+                "_id": {"user_id": "$_id", "category_name": "$category_details.category_name"},
+                "total_spent_per_category": {"$sum": {"$multiply": ["$orders.order_products.quantity", "$product_details.price"]}}
+            }
+        },
+        {"$match": {"total_spent_per_category": {"$gt": threshold}}},
+        {
+            "$project": {
+                "user_id": "$_id.user_id",
+                "category_name": "$_id.category_name",
+                "total_spent_per_category": 1
+            }
+        },
+        {"$sort": {"total_spent_per_category": -1}}
+    ]
+    result = mongo_db['users'].aggregate(pipeline)
+    return list(result)
