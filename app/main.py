@@ -14,7 +14,7 @@ import logging
 
 from app.reports import get_users_spending_over_threshold, get_repeat_buyer_products_sql, \
     get_repeat_buyer_products_no_sql, log_exec_stats_repeat_buyer_products_no_sql, \
-    get_users_spending_over_threshold_mongo
+    get_users_spending_over_threshold_mongo, log_exec_stats_spending_threshold_no_sql
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -260,11 +260,34 @@ def report1():
     threshold = 5000  # Set threshold value here
 
     if db_status == 'NO_SQL':
+        # No indexes
+        log_exec_stats_spending_threshold_no_sql(mongo_db, mongo_client, threshold)
+        log_exec_stats_spending_threshold_no_sql(mongo_db, mongo_client, threshold)
+
+        # With indexes
+        mongo_db['users'].create_index([('orders.date_placed', 1)])
+        mongo_db['users'].create_index([('orders.order_products.product_id', 1)])
+        log_exec_stats_spending_threshold_no_sql(mongo_db, mongo_client, threshold)
+
+        # With indexes and composite index
+        mongo_db['users'].create_index([('orders.date_placed', 1), ('orders.order_products.product_id', 1)])
+        log_exec_stats_spending_threshold_no_sql(mongo_db, mongo_client, threshold)
+
         report_data = get_users_spending_over_threshold_mongo(mongo_db, threshold)
+
+        # Clean up indexes
+        mongo_db['users'].drop_index([('orders.date_placed', 1)])
+        mongo_db['users'].drop_index([('orders.order_products.product_id', 1)])
+        mongo_db['users'].drop_index([('orders.date_placed', 1), ('orders.order_products.product_id', 1)])
     else:
+        start_time = time.time()
         report_data = get_users_spending_over_threshold(threshold)
+        end_time = time.time()
+        duration = (end_time - start_time) * 1000
+        logger.debug(f"Runtime for SQL branch: {duration:.2f} milliseconds")
 
     return render_template('report1.html', report=report_data)
+
 
 @app.route('/report2')
 def report2():

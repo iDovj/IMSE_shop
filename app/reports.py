@@ -175,6 +175,7 @@ def log_exec_stats_repeat_buyer_products_no_sql(mongo_db, mongo_client):
 
 def get_users_spending_over_threshold_mongo(mongo_db, threshold):
     six_months_ago = datetime.utcnow() - timedelta(days=180)
+    
     pipeline = [
         {"$match": {"orders.date_placed": {"$gte": six_months_ago}}},
         {"$unwind": "$orders"},
@@ -183,6 +184,21 @@ def get_users_spending_over_threshold_mongo(mongo_db, threshold):
             "$lookup": {
                 "from": "products",
                 "localField": "orders.order_products.product_id",
+                "foreignField": "_id",
+                "as": "product_details"
+            }
+        },
+        {"$unwind": "$product_details"},
+        {
+            "$group": {
+                "_id": {"user_id": "$_id", "product_id": "$orders.order_products.product_id"},
+                "total_spent": {"$sum": {"$multiply": ["$orders.order_products.quantity", "$product_details.price"]}}
+            }
+        },
+        {
+            "$lookup": {
+                "from": "products",
+                "localField": "_id.product_id",
                 "foreignField": "_id",
                 "as": "product_details"
             }
@@ -199,8 +215,8 @@ def get_users_spending_over_threshold_mongo(mongo_db, threshold):
         {"$unwind": "$category_details"},
         {
             "$group": {
-                "_id": {"user_id": "$_id", "category_name": "$category_details.category_name"},
-                "total_spent_per_category": {"$sum": {"$multiply": ["$orders.order_products.quantity", "$product_details.price"]}}
+                "_id": {"user_id": "$_id.user_id", "category_name": "$category_details.category_name"},
+                "total_spent_per_category": {"$sum": "$total_spent"}
             }
         },
         {"$match": {"total_spent_per_category": {"$gt": threshold}}},
@@ -213,5 +229,46 @@ def get_users_spending_over_threshold_mongo(mongo_db, threshold):
         },
         {"$sort": {"total_spent_per_category": -1}}
     ]
+    
     result = mongo_db['users'].aggregate(pipeline)
     return list(result)
+
+def log_exec_stats_spending_threshold_no_sql(mongo_db, mongo_client, threshold):
+    six_months_ago = datetime.utcnow() - timedelta(days=180)
+    
+    pipeline = [
+        {"$match": {"orders.date_placed": {"$gte": six_months_ago}}},
+        {"$unwind": "$orders"},
+        {"$lookup": {
+            "from": "products",
+            "localField": "orders.order_products.product_id",
+            "foreignField": "_id",
+            "as": "product_details"
+        }},
+        {"$unwind": "$product_details"},
+        {"$unwind": "$orders.order_products"},
+        {"$group": {
+            "_id": {"user_id": "$_id", "category_name": "$product_details.category_ids"},
+            "total_spent_per_category": {"$sum": {"$multiply": ["$orders.order_products.quantity", "$product_details.price"]}}
+        }},
+        {"$match": {"total_spent_per_category": {"$gt": threshold}}},
+        {"$project": {
+            "user_id": "$_id.user_id",
+            "category_name": "$_id.category_name",
+            "total_spent_per_category": 1
+        }},
+        {"$sort": {"total_spent_per_category": -1}}
+    ]
+    
+    execution_stats = mongo_db.command(
+        'explain',
+        {
+            'aggregate': "users",
+            'pipeline': pipeline,
+            'cursor': {}
+        },
+        verbosity='executionStats'
+    )
+
+    execution_time_millis = execution_stats['stages'][0]['$cursor']['executionStats']['executionTimeMillis']
+    logger.debug(f"Execution Time Millis: {execution_time_millis}")
